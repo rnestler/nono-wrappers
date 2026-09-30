@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# Launch a coding agent inside nono, extending its base profile with
+# language profiles detected from marker files in the project.
+#
+# Invoked as nono-claude / nono-opencode (symlinks), or as
+# `nono-agent <tool> [args...]`.
+set -euo pipefail
+
+# Detection table: "<profile> <marker> [<marker>...]".
+# The profile is added if any marker exists in the project root or $PWD.
+DETECT=(
+	"rust-dev Cargo.toml"
+	"go-dev go.mod"
+	"python-dev pyproject.toml setup.py requirements.txt uv.lock"
+	"java-dev pom.xml build.gradle build.gradle.kts"
+	"bun-dev bun.lockb bun.lock"
+	"mise-dev mise.toml .mise.toml .tool-versions"
+)
+
+prog=$(basename "$0")
+case "$prog" in
+nono-claude) tool=claude ;;
+nono-opencode) tool=opencode ;;
+*)
+	if [[ $# -lt 1 ]]; then
+		echo "usage: $prog <claude|opencode> [args...]" >&2
+		exit 2
+	fi
+	tool=$1
+	shift
+	prog="nono-$tool"
+	;;
+esac
+
+case "$tool" in
+claude) base=${NONO_CLAUDE_PROFILE:-claude-arch} ;;
+opencode) base=${NONO_OPENCODE_PROFILE:-opencode} ;;
+*)
+	echo "$prog: unknown tool '$tool'" >&2
+	exit 2
+	;;
+esac
+
+dirs=("$PWD")
+if root=$(git rev-parse --show-toplevel 2>/dev/null) && [[ "$root" != "$PWD" ]]; then
+	dirs=("$root" "$PWD")
+fi
+
+# has <marker>: true if the marker exists in any of the searched dirs
+has() {
+	local d
+	for d in "${dirs[@]}"; do
+		[[ -e "$d/$1" ]] && return 0
+	done
+	return 1
+}
+
+extends=()
+add() {
+	local p
+	for p in "${extends[@]}"; do
+		[[ "$p" == "$1" ]] && return
+	done
+	extends+=("$1")
+}
+
+if [[ -z "${NONO_WRAPPER_NO_DETECT:-}" ]]; then
+	for entry in "${DETECT[@]}"; do
+		read -ra fields <<<"$entry"
+		for marker in "${fields[@]:1}"; do
+			if has "$marker"; then
+				add "${fields[0]}"
+				break
+			fi
+		done
+	done
+	# Rules that don't fit the table.
+	if has Gemfile && { has bin/rails || has config/application.rb; }; then
+		add rails
+	fi
+	if has package.json && ! has bun.lockb && ! has bun.lock; then
+		add node-dev
+	fi
+fi
+
+read -ra extra <<<"${NONO_WRAPPER_EXTENDS:-}"
+for p in "${extra[@]}"; do
+	add "$p"
+done
+
+args=(run --profile "$base")
+for p in "${extends[@]}"; do
+	args+=(--extends "$p")
+done
+[[ -n "${NONO_WRAPPER_DRY_RUN:-}" ]] && args+=(--dry-run)
+read -ra user_args <<<"${NONO_WRAPPER_ARGS:-}"
+args+=("${user_args[@]}" -- "$tool" "$@")
+
+if [[ -z "${NONO_WRAPPER_QUIET:-}" ]]; then
+	joined=$(IFS=,; echo "${extends[*]}")
+	echo "$prog: profile=$base extends=${joined:-none}" >&2
+fi
+
+exec nono "${args[@]}"
