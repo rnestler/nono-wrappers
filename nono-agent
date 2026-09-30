@@ -2,7 +2,7 @@
 # Launch a coding agent inside nono, extending its base profile with
 # language profiles detected from marker files in the project.
 #
-# Invoked as nono-claude / nono-opencode (symlinks), or as
+# Invoked as nono-claude / nono-opencode / nono-pi (symlinks), or as
 # `nono-agent <tool> [args...]`.
 set -euo pipefail
 
@@ -21,9 +21,10 @@ prog=$(basename "$0")
 case "$prog" in
 nono-claude) tool=claude ;;
 nono-opencode) tool=opencode ;;
+nono-pi) tool=pi ;;
 *)
 	if [[ $# -lt 1 ]]; then
-		echo "usage: $prog <claude|opencode> [args...]" >&2
+		echo "usage: $prog <claude|opencode|pi> [args...]" >&2
 		exit 2
 	fi
 	tool=$1
@@ -35,6 +36,7 @@ esac
 case "$tool" in
 claude) base=${NONO_CLAUDE_PROFILE:-claude-arch} ;;
 opencode) base=${NONO_OPENCODE_PROFILE:-opencode} ;;
+pi) base=${NONO_PI_PROFILE:-pi} ;;
 *)
 	echo "$prog: unknown tool '$tool'" >&2
 	exit 2

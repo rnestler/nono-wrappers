@@ -1,7 +1,8 @@
 # nono-wrappers
 Simple scripts to wrap tools in nono.sh with profile detection
 
-`nono-claude` and `nono-opencode` launch `claude` / `opencode` via `nono run`
+`nono-claude`, `nono-opencode` and `nono-pi` launch `claude` / `opencode` / `pi`
+via `nono run --allow-cwd`
 with a base profile, plus `--extends` for every language profile detected in the
 project. All arguments are passed through to the tool.
 
@@ -17,6 +18,7 @@ nono-claude             # nono run --profile claude-arch --extends rust-dev -- c
 |-----------------|---------------|-------------------------|
 | `nono-claude`   | `claude-arch` | `NONO_CLAUDE_PROFILE`   |
 | `nono-opencode` | `opencode`    | `NONO_OPENCODE_PROFILE` |
+| `nono-pi`       | `pi`          | `NONO_PI_PROFILE`       |
 
 ## Detection
 
