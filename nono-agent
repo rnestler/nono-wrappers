@@ -89,6 +89,7 @@ for p in "${extra[@]}"; do
 done
 
 args=(run --profile "$base")
+[[ -z "${NONO_WRAPPER_NO_ALLOW_CWD:-}" ]] && args+=(--allow-cwd)
 for p in "${extends[@]}"; do
 	args+=(--extends "$p")
 done

@@ -42,6 +42,7 @@ Add languages by editing the `DETECT` table at the top of `nono-agent`.
 |--------------------------|---------------------------------------------------------|
 | `NONO_WRAPPER_EXTENDS`   | extra profiles to extend, space separated               |
 | `NONO_WRAPPER_NO_DETECT` | skip detection                                          |
+| `NONO_WRAPPER_NO_ALLOW_CWD` | don't pass `--allow-cwd` (nono will prompt for CWD access) |
 | `NONO_WRAPPER_DRY_RUN`   | pass `--dry-run` to nono                                |
-| `NONO_WRAPPER_ARGS`      | extra `nono run` flags, space separated (e.g. `-v --allow-cwd`) |
+| `NONO_WRAPPER_ARGS`      | extra `nono run` flags, space separated (e.g. `-v`) |
 | `NONO_WRAPPER_QUIET`     | don't print the selected profiles to stderr             |
