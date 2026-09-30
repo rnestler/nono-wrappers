@@ -6,7 +6,7 @@ with a base profile, plus `--extends` for every language profile detected in the
 project. All arguments are passed through to the tool.
 
 ```sh
-./install.sh            # symlinks into ~/.local/bin (override with PREFIX=...)
+./install.sh            # symlinks into ~/bin (or: ./install.sh DEST)
 cd ~/projects/some-rust-crate
 nono-claude             # nono run --profile claude-arch --extends rust-dev -- claude
 ```

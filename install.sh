@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Symlink nono-claude and nono-opencode into $PREFIX (default ~/.local/bin).
+# Symlink nono-claude and nono-opencode into the given directory (default ~/bin).
+# Usage: install.sh [DEST]
 set -euo pipefail
 
 src=$(cd "$(dirname "$0")" && pwd)/nono-agent
-dest=${PREFIX:-$HOME/.local/bin}
+dest=${1:-$HOME/bin}
 
 mkdir -p "$dest"
 for name in nono-claude nono-opencode; do
