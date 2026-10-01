@@ -1,0 +1,18 @@
+[package]
+name = "nono-wrappers"
+version = "0.1.0"
+edition = "2024"
+description = "Launch coding agents inside nono with profiles detected from the project"
+
+[[bin]]
+name = "nono-agent"
+path = "src/main.rs"
+
+[dependencies]
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+strip = true
+lto = true

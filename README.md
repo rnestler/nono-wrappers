@@ -1,5 +1,5 @@
 # nono-wrappers
-Simple scripts to wrap tools in nono.sh with profile detection
+Wrap coding agents in nono.sh with profile detection
 
 `nono-claude`, `nono-opencode` and `nono-pi` launch `claude` / `opencode` / `pi`
 via `nono run --allow-cwd`
@@ -7,7 +7,7 @@ with a base profile, plus `--extends` for every language profile detected in the
 project. All arguments are passed through to the tool.
 
 ```sh
-./install.sh            # symlinks into ~/bin (or: ./install.sh DEST)
+./install.sh            # builds and installs into ~/bin (or: ./install.sh DEST)
 cd ~/projects/some-rust-crate
 nono-claude             # nono run --profile claude-arch --extends rust-dev --extends mise-dev -- claude
 ```
@@ -18,6 +18,10 @@ them goes to the tool:
 ```sh
 nono-claude +browser +selenium --resume
 ```
+
+`install.sh` needs `cargo`. It installs the `nono-agent` binary and the
+`nono-claude` / `nono-opencode` / `nono-pi` symlinks to it; the binary picks
+the tool from the name it was called by (or use `nono-agent <tool> [args...]`).
 
 ## Base profiles
 
@@ -44,7 +48,7 @@ subdirectory picks up both).
 | `Gemfile` + `bin/rails` or `config/application.rb`         | `rails` (user profile) |
 | any of the above, and `mise` is installed                  | `mise-dev`   |
 
-Add languages by editing the `DETECT` table at the top of `nono-agent`.
+Add languages by editing the `DETECT` table in `src/detect.rs`.
 
 ## Environment
 
