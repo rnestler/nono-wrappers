@@ -3,7 +3,8 @@
 # language profiles detected from marker files in the project.
 #
 # Invoked as nono-claude / nono-opencode / nono-pi (symlinks), or as
-# `nono-agent <tool> [args...]`.
+# `nono-agent <tool> [args...]`. Leading `+<profile>` arguments add extra
+# profiles to extend, e.g. `nono-claude +browser --resume`.
 set -euo pipefail
 
 # Detection table: "<profile> <marker> [<marker>...]".
@@ -85,9 +86,21 @@ if [[ -z "${NONO_WRAPPER_NO_DETECT:-}" ]]; then
 	fi
 fi
 
+# mise shims wrap most language toolchains, so extend mise-dev whenever a
+# language was detected and mise is installed.
+if [[ -z "${NONO_WRAPPER_NO_DETECT:-}${NONO_WRAPPER_NO_MISE:-}" && ${#extends[@]} -gt 0 ]] &&
+	command -v mise >/dev/null; then
+	add mise-dev
+fi
+
 read -ra extra <<<"${NONO_WRAPPER_EXTENDS:-}"
 for p in "${extra[@]}"; do
 	add "$p"
+done
+
+while [[ $# -gt 0 && "$1" == +?* ]]; do
+	add "${1#+}"
+	shift
 done
 
 args=(run --profile "$base")

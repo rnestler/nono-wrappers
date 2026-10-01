@@ -9,7 +9,14 @@ project. All arguments are passed through to the tool.
 ```sh
 ./install.sh            # symlinks into ~/bin (or: ./install.sh DEST)
 cd ~/projects/some-rust-crate
-nono-claude             # nono run --profile claude-arch --extends rust-dev -- claude
+nono-claude             # nono run --profile claude-arch --extends rust-dev --extends mise-dev -- claude
+```
+
+Leading `+<profile>` arguments extend additional profiles; everything after
+them goes to the tool:
+
+```sh
+nono-claude +browser +selenium --resume
 ```
 
 ## Base profiles
@@ -35,6 +42,7 @@ subdirectory picks up both).
 | `package.json` (without a bun lockfile)                    | `node-dev`   |
 | `mise.toml`, `.mise.toml`, `.tool-versions`                | `mise-dev`   |
 | `Gemfile` + `bin/rails` or `config/application.rb`         | `rails` (user profile) |
+| any of the above, and `mise` is installed                  | `mise-dev`   |
 
 Add languages by editing the `DETECT` table at the top of `nono-agent`.
 
@@ -44,6 +52,7 @@ Add languages by editing the `DETECT` table at the top of `nono-agent`.
 |--------------------------|---------------------------------------------------------|
 | `NONO_WRAPPER_EXTENDS`   | extra profiles to extend, space separated               |
 | `NONO_WRAPPER_NO_DETECT` | skip detection                                          |
+| `NONO_WRAPPER_NO_MISE`   | don't add `mise-dev` automatically                      |
 | `NONO_WRAPPER_NO_ALLOW_CWD` | don't pass `--allow-cwd` (nono will prompt for CWD access) |
 | `NONO_WRAPPER_DRY_RUN`   | pass `--dry-run` to nono                                |
 | `NONO_WRAPPER_ARGS`      | extra `nono run` flags, space separated (e.g. `-v`) |
