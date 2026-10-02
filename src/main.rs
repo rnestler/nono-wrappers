@@ -15,11 +15,19 @@ use std::process::{Command, exit};
 
 use detect::{Project, add};
 
-/// Supported tools: (tool, base profile override variable, default base profile).
-const TOOLS: &[(&str, &str, &str)] = &[
-    ("claude", "NONO_CLAUDE_PROFILE", "claude-arch"),
-    ("opencode", "NONO_OPENCODE_PROFILE", "opencode"),
-    ("pi", "NONO_PI_PROFILE", "pi"),
+/// Supported tools: (tool, base profile override variable, default base
+/// profile, arguments always passed to the tool, after its subcommand if any).
+const TOOLS: &[(&str, &str, &str, &[&str])] = &[
+    ("claude", "NONO_CLAUDE_PROFILE", "claude-arch", &[]),
+    // Without --standalone, opencode v2 may run tools in a shared server
+    // outside the sandbox: https://github.com/nolabs-ai/nono-packs/issues/40
+    (
+        "opencode",
+        "NONO_OPENCODE_PROFILE",
+        "opencode",
+        &["--standalone"],
+    ),
+    ("pi", "NONO_PI_PROFILE", "pi", &[]),
 ];
 
 /// A non-empty environment variable, like bash's `-n` test.
@@ -70,6 +78,19 @@ fn split_profiles(args: &[OsString]) -> (Vec<String>, &[OsString]) {
     (profiles, &[])
 }
 
+/// Insert the tool's fixed arguments after its subcommand (a leading
+/// argument not starting with `-`), or at the front if there is none.
+fn insert_fixed_args(fixed: &[&str], args: &[OsString]) -> Vec<OsString> {
+    let at = usize::from(
+        args.first()
+            .is_some_and(|a| !a.as_encoded_bytes().starts_with(b"-")),
+    );
+    let mut out = args[..at].to_vec();
+    out.extend(fixed.iter().map(OsString::from));
+    out.extend_from_slice(&args[at..]);
+    out
+}
+
 fn main() {
     let mut args: Vec<OsString> = env::args_os().collect();
     let argv0 = args.remove(0);
@@ -90,7 +111,8 @@ fn main() {
             tool
         }
     };
-    let Some(&(_, base_var, base_default)) = TOOLS.iter().find(|(t, ..)| *t == tool) else {
+    let Some(&(_, base_var, base_default, fixed_args)) = TOOLS.iter().find(|(t, ..)| *t == tool)
+    else {
         eprintln!("{prog}: unknown tool '{tool}'");
         exit(2);
     };
@@ -118,6 +140,7 @@ fn main() {
     for p in profiles {
         add(&mut launch.extends, &p);
     }
+    let tool_args = insert_fixed_args(fixed_args, tool_args);
 
     if var("NONO_WRAPPER_QUIET").is_none() {
         let joined = launch.extends.join(",");
@@ -126,7 +149,7 @@ fn main() {
     }
 
     let err = Command::new("nono")
-        .args(launch.args(&tool, tool_args))
+        .args(launch.args(&tool, &tool_args))
         .exec();
     eprintln!("{prog}: failed to run nono: {err}");
     exit(127);
@@ -167,6 +190,21 @@ mod tests {
         let (profiles, rest) = split_profiles(&args);
         assert_eq!(profiles, ["mise-dev"]);
         assert!(rest.is_empty());
+    }
+
+    #[test]
+    fn fixed_args_after_subcommand() {
+        let fixed = &["--standalone"];
+        assert_eq!(insert_fixed_args(fixed, &[]), os(&["--standalone"]));
+        assert_eq!(
+            insert_fixed_args(fixed, &os(&["-c"])),
+            os(&["--standalone", "-c"])
+        );
+        assert_eq!(
+            insert_fixed_args(fixed, &os(&["run", "hi"])),
+            os(&["run", "--standalone", "hi"])
+        );
+        assert_eq!(insert_fixed_args(&[], &os(&["run"])), os(&["run"]));
     }
 
     #[test]

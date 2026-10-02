@@ -31,6 +31,10 @@ the tool from the name it was called by (or use `nono-agent <tool> [args...]`).
 | `nono-opencode` | `opencode`    | `NONO_OPENCODE_PROFILE` |
 | `nono-pi`       | `pi`          | `NONO_PI_PROFILE`       |
 
+`nono-opencode` always passes `--standalone` to opencode. Otherwise opencode v2
+may run tools in a shared server outside the sandbox
+([nono-packs#40](https://github.com/nolabs-ai/nono-packs/issues/40)).
+
 ## Detection
 
 Markers are checked in the git root and in `$PWD` (so running from a monorepo
