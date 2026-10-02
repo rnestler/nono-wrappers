@@ -64,4 +64,4 @@ Add languages by editing the `DETECT` table in `src/detect.rs`.
 | `NONO_WRAPPER_NO_ALLOW_CWD` | don't pass `--allow-cwd` (nono will prompt for CWD access) |
 | `NONO_WRAPPER_DRY_RUN`   | pass `--dry-run` to nono                                |
 | `NONO_WRAPPER_ARGS`      | extra `nono run` flags, space separated (e.g. `-v`) |
-| `NONO_WRAPPER_QUIET`     | don't print the selected profiles to stderr             |
+| `NONO_WRAPPER_QUIET`     | don't print the nono command line to stderr             |

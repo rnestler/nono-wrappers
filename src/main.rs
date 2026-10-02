@@ -8,7 +8,7 @@
 mod detect;
 
 use std::env;
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{Command, exit};
@@ -142,17 +142,26 @@ fn main() {
     }
     let tool_args = insert_fixed_args(fixed_args, tool_args);
 
+    let nono_args = launch.args(&tool, &tool_args);
     if var("NONO_WRAPPER_QUIET").is_none() {
-        let joined = launch.extends.join(",");
-        let joined = if joined.is_empty() { "none" } else { &joined };
-        eprintln!("{prog}: profile={} extends={joined}", launch.base);
+        let words: Vec<String> = nono_args.iter().map(|a| shell_quote(a)).collect();
+        eprintln!("nono {}", words.join(" "));
     }
 
-    let err = Command::new("nono")
-        .args(launch.args(&tool, &tool_args))
-        .exec();
+    let err = Command::new("nono").args(nono_args).exec();
     eprintln!("{prog}: failed to run nono: {err}");
     exit(127);
+}
+
+/// Quote `arg` for display so the printed command can be copied into a shell.
+fn shell_quote(arg: &OsStr) -> String {
+    let s = arg.to_string_lossy();
+    let safe = |c: char| c.is_ascii_alphanumeric() || "-_./=+,:@%".contains(c);
+    if !s.is_empty() && s.chars().all(safe) {
+        s.into_owned()
+    } else {
+        format!("'{}'", s.replace('\'', r"'\''"))
+    }
 }
 
 fn words(s: Option<String>) -> Vec<String> {
@@ -246,6 +255,14 @@ mod tests {
                 "--version",
             ])
         );
+    }
+
+    #[test]
+    fn shell_quoting() {
+        assert_eq!(shell_quote("--extends".as_ref()), "--extends");
+        assert_eq!(shell_quote("say hi".as_ref()), "'say hi'");
+        assert_eq!(shell_quote("it's".as_ref()), r"'it'\''s'");
+        assert_eq!(shell_quote("".as_ref()), "''");
     }
 
     #[test]
