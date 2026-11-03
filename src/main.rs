@@ -2,13 +2,14 @@
 //! language profiles detected from marker files in the project.
 //!
 //! Invoked as nono-claude / nono-opencode / nono-pi (symlinks), or as
-//! `nono-agent <tool> [args...]`. Leading `+<profile>` arguments add extra
-//! profiles to extend, e.g. `nono-claude +browser --resume`.
+//! `nono-agent <tool> [args...]`. Leading nono flags are passed to nono, e.g.
+//! `nono-claude --allow ~/other --extends browser --resume`.
 
 mod detect;
 
 use std::env;
 use std::ffi::{OsStr, OsString};
+use std::os::unix::ffi::OsStrExt;
 use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{Command, exit};
@@ -30,6 +31,19 @@ const TOOLS: &[(&str, &str, &str, &[&str])] = &[
     ("pi", "NONO_PI_PROFILE", "pi-local", &[]),
 ];
 
+/// Flags passed to nono when they lead the command line. Each takes one value.
+/// Long forms only, since `-r` and `-w` mean something else to claude.
+const NONO_FLAGS: &[&str] = &[
+    "--allow",
+    "--read",
+    "--write",
+    "--allow-file",
+    "--read-file",
+    "--write-file",
+    "--allow-domain",
+    "--open-port",
+];
+
 /// A non-empty environment variable, like bash's `-n` test.
 fn var(name: &str) -> Option<String> {
     env::var(name).ok().filter(|v| !v.is_empty())
@@ -42,7 +56,7 @@ struct Launch {
     allow_cwd: bool,
     extends: Vec<String>,
     dry_run: bool,
-    nono_args: Vec<String>,
+    nono_args: Vec<OsString>,
 }
 
 impl Launch {
@@ -58,7 +72,7 @@ impl Launch {
         if self.dry_run {
             args.push("--dry-run".into());
         }
-        args.extend(self.nono_args.iter().map(OsString::from));
+        args.extend_from_slice(&self.nono_args);
         args.push("--".into());
         args.push(tool.into());
         args.extend_from_slice(tool_args);
@@ -66,16 +80,52 @@ impl Launch {
     }
 }
 
-/// Split leading `+<profile>` arguments off the tool's arguments.
-fn split_profiles(args: &[OsString]) -> (Vec<String>, &[OsString]) {
+/// The command line split into what goes to nono and what goes to the tool.
+#[derive(Debug)]
+struct Leading<'a> {
+    profiles: Vec<String>,
+    nono_args: Vec<OsString>,
+    tool_args: &'a [OsString],
+}
+
+/// Read leading nono flags, as `--flag value` or `--flag=value`, up to the
+/// first argument that isn't one. The rest belongs to the tool.
+fn split_leading(args: &[OsString]) -> Result<Leading<'_>, String> {
     let mut profiles = Vec::new();
-    for (i, arg) in args.iter().enumerate() {
-        match arg.to_str().and_then(|a| a.strip_prefix('+')) {
-            Some(p) if !p.is_empty() => profiles.push(p.to_owned()),
-            _ => return (profiles, &args[i..]),
+    let mut nono_args = Vec::new();
+    let mut rest = args;
+    while let Some((arg, tail)) = rest.split_first() {
+        let bytes = arg.as_bytes();
+        let (name, inline) = match bytes.iter().position(|b| *b == b'=') {
+            Some(i) => (&bytes[..i], Some(OsStr::from_bytes(&bytes[i + 1..]))),
+            None => (bytes, None),
+        };
+        let extends = name == b"--extends";
+        if !extends && !NONO_FLAGS.iter().any(|f| f.as_bytes() == name) {
+            break;
         }
+        let (value, tail) = match inline {
+            Some(value) => (value, tail),
+            None => {
+                let (value, tail) = tail
+                    .split_first()
+                    .ok_or_else(|| format!("{} needs a value", String::from_utf8_lossy(name)))?;
+                (value.as_os_str(), tail)
+            }
+        };
+        if extends {
+            profiles.push(value.to_string_lossy().into_owned());
+        } else {
+            nono_args.push(OsStr::from_bytes(name).to_owned());
+            nono_args.push(value.to_owned());
+        }
+        rest = tail;
     }
-    (profiles, &[])
+    Ok(Leading {
+        profiles,
+        nono_args,
+        tool_args: rest,
+    })
 }
 
 /// Insert the tool's fixed arguments after its subcommand (a leading
@@ -121,7 +171,10 @@ fn main() {
         base: var(base_var).unwrap_or_else(|| base_default.to_owned()),
         allow_cwd: var("NONO_WRAPPER_NO_ALLOW_CWD").is_none(),
         dry_run: var("NONO_WRAPPER_DRY_RUN").is_some(),
-        nono_args: words(var("NONO_WRAPPER_ARGS")),
+        nono_args: words(var("NONO_WRAPPER_ARGS"))
+            .into_iter()
+            .map(OsString::from)
+            .collect(),
         ..Default::default()
     };
 
@@ -136,11 +189,15 @@ fn main() {
     for p in words(var("NONO_WRAPPER_EXTENDS")) {
         add(&mut launch.extends, &p);
     }
-    let (profiles, tool_args) = split_profiles(&args);
-    for p in profiles {
-        add(&mut launch.extends, &p);
+    let leading = split_leading(&args).unwrap_or_else(|e| {
+        eprintln!("{prog}: {e}");
+        exit(2);
+    });
+    for p in &leading.profiles {
+        add(&mut launch.extends, p);
     }
-    let tool_args = insert_fixed_args(fixed_args, tool_args);
+    launch.nono_args.extend(leading.nono_args);
+    let tool_args = insert_fixed_args(fixed_args, leading.tool_args);
 
     let nono_args = launch.args(&tool, &tool_args);
     if var("NONO_WRAPPER_QUIET").is_none() {
@@ -178,27 +235,89 @@ mod tests {
     }
 
     #[test]
-    fn leading_profiles() {
-        let args = os(&["+browser", "+selenium", "--resume", "+later"]);
-        let (profiles, rest) = split_profiles(&args);
-        assert_eq!(profiles, ["browser", "selenium"]);
-        assert_eq!(rest, os(&["--resume", "+later"]));
+    fn leading_flags_in_any_order() {
+        let args = os(&[
+            "--allow",
+            "/a",
+            "--extends",
+            "browser",
+            "--allow-domain=example.com",
+            "--extends=selenium",
+            "--resume",
+        ]);
+        let leading = split_leading(&args).unwrap();
+        assert_eq!(leading.profiles, ["browser", "selenium"]);
+        assert_eq!(
+            leading.nono_args,
+            os(&["--allow", "/a", "--allow-domain", "example.com"])
+        );
+        assert_eq!(leading.tool_args, os(&["--resume"]));
     }
 
     #[test]
-    fn bare_plus_goes_to_tool() {
-        let args = os(&["+", "x"]);
-        let (profiles, rest) = split_profiles(&args);
-        assert!(profiles.is_empty());
-        assert_eq!(rest, args);
+    fn every_nono_flag_is_recognised() {
+        for flag in NONO_FLAGS {
+            let args = os(&[flag, "x", "run"]);
+            let leading = split_leading(&args).unwrap();
+            assert_eq!(leading.nono_args, os(&[flag, "x"]));
+            assert_eq!(leading.tool_args, os(&["run"]));
+        }
     }
 
     #[test]
-    fn only_profiles() {
-        let args = os(&["+mise-dev"]);
-        let (profiles, rest) = split_profiles(&args);
-        assert_eq!(profiles, ["mise-dev"]);
-        assert!(rest.is_empty());
+    fn stops_at_first_unrecognised_argument() {
+        let args = os(&["--resume", "--allow", "/a"]);
+        let leading = split_leading(&args).unwrap();
+        assert!(leading.nono_args.is_empty());
+        assert_eq!(leading.tool_args, args);
+
+        let args = os(&["+browser", "--allow", "/a"]);
+        let leading = split_leading(&args).unwrap();
+        assert!(leading.profiles.is_empty());
+        assert_eq!(leading.tool_args, args);
+
+        let args = os(&["--", "--allow", "/a"]);
+        assert_eq!(split_leading(&args).unwrap().tool_args, args);
+
+        let args = os(&["--allowedTools=Bash"]);
+        assert_eq!(split_leading(&args).unwrap().tool_args, args);
+    }
+
+    #[test]
+    fn missing_value_is_an_error() {
+        for flag in ["--allow", "--extends"] {
+            assert_eq!(
+                split_leading(&os(&[flag])).unwrap_err(),
+                format!("{flag} needs a value")
+            );
+        }
+    }
+
+    #[test]
+    fn empty_inline_value_is_left_for_nono() {
+        let args = os(&["--allow="]);
+        let leading = split_leading(&args).unwrap();
+        assert_eq!(leading.nono_args, os(&["--allow", ""]));
+    }
+
+    #[test]
+    fn values_stay_one_argument() {
+        let args = os(&["--allow", "/my dir", "--read=/a=b c"]);
+        let leading = split_leading(&args).unwrap();
+        assert_eq!(
+            leading.nono_args,
+            os(&["--allow", "/my dir", "--read", "/a=b c"])
+        );
+    }
+
+    #[test]
+    fn non_utf8_value_survives() {
+        let value = OsStr::from_bytes(b"/caf\xe9");
+        let mut inline = OsString::from("--allow=");
+        inline.push(value);
+        let args = [inline];
+        let leading = split_leading(&args).unwrap();
+        assert_eq!(leading.nono_args[1], value);
     }
 
     #[test]

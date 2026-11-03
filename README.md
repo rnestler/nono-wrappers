@@ -12,12 +12,16 @@ cd ~/projects/some-rust-crate
 nono-claude             # nono run --profile claude-local --extends rust-dev --extends mise-dev -- claude
 ```
 
-Leading `+<profile>` arguments extend additional profiles; everything after
-them goes to the tool:
+These nono flags go to nono when they come first on the command line, as
+`--flag value` or `--flag=value`: `--allow`, `--read`, `--write`, `--allow-file`,
+`--read-file`, `--write-file`, `--allow-domain`, `--open-port` and `--extends`.
+Everything from the first other argument onwards goes to the tool:
 
 ```sh
-nono-claude +browser +selenium --resume
+nono-claude --allow ~/other --allow-domain example.com --extends browser --resume
 ```
+
+For other nono flags, use `NONO_WRAPPER_ARGS`.
 
 `install.sh` needs `cargo`. It installs the `nono-agent` binary and the
 `nono-claude` / `nono-opencode` / `nono-pi` symlinks to it; the binary picks
