@@ -24,10 +24,10 @@ const TOOLS: &[(&str, &str, &str, &[&str])] = &[
     (
         "opencode",
         "NONO_OPENCODE_PROFILE",
-        "opencode",
+        "opencode-local",
         &["--standalone"],
     ),
-    ("pi", "NONO_PI_PROFILE", "pi", &[]),
+    ("pi", "NONO_PI_PROFILE", "pi-local", &[]),
 ];
 
 /// A non-empty environment variable, like bash's `-n` test.

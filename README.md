@@ -28,12 +28,26 @@ the tool from the name it was called by (or use `nono-agent <tool> [args...]`).
 | command         | profile       | override                |
 |-----------------|---------------|-------------------------|
 | `nono-claude`   | `claude-arch` | `NONO_CLAUDE_PROFILE`   |
-| `nono-opencode` | `opencode`    | `NONO_OPENCODE_PROFILE` |
-| `nono-pi`       | `pi`          | `NONO_PI_PROFILE`       |
+| `nono-opencode` | `opencode-local` | `NONO_OPENCODE_PROFILE` |
+| `nono-pi`       | `pi-local`    | `NONO_PI_PROFILE`       |
 
 `nono-opencode` always passes `--standalone` to opencode. Otherwise opencode v2
 may run tools in a shared server outside the sandbox
 ([nono-packs#40](https://github.com/nolabs-ai/nono-packs/issues/40)).
+
+The base profiles should set `"network": {"network_profile": null}`. The
+language profiles (`python-dev`, `rust-dev`, …) set `network_profile:
+"developer"`, which otherwise turns on a domain allowlist that blocks localhost
+and most hosts (opencode then fails with "Standalone server exited before
+reporting readiness"). For example, `opencode-local`:
+
+```json
+{
+  "extends": "nolabs-ai/opencode",
+  "meta": { "name": "opencode-local" },
+  "network": { "network_profile": null }
+}
+```
 
 ## Detection
 
