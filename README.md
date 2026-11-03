@@ -9,7 +9,7 @@ project. All arguments are passed through to the tool.
 ```sh
 ./install.sh            # builds and installs into ~/bin (or: ./install.sh DEST)
 cd ~/projects/some-rust-crate
-nono-claude             # nono run --profile claude-arch --extends rust-dev --extends mise-dev -- claude
+nono-claude             # nono run --profile claude-local --extends rust-dev --extends mise-dev -- claude
 ```
 
 Leading `+<profile>` arguments extend additional profiles; everything after
@@ -27,7 +27,7 @@ the tool from the name it was called by (or use `nono-agent <tool> [args...]`).
 
 | command         | profile       | override                |
 |-----------------|---------------|-------------------------|
-| `nono-claude`   | `claude-arch` | `NONO_CLAUDE_PROFILE`   |
+| `nono-claude`   | `claude-local` | `NONO_CLAUDE_PROFILE`   |
 | `nono-opencode` | `opencode-local` | `NONO_OPENCODE_PROFILE` |
 | `nono-pi`       | `pi-local`    | `NONO_PI_PROFILE`       |
 

@@ -18,7 +18,7 @@ use detect::{Project, add};
 /// Supported tools: (tool, base profile override variable, default base
 /// profile, arguments always passed to the tool, after its subcommand if any).
 const TOOLS: &[(&str, &str, &str, &[&str])] = &[
-    ("claude", "NONO_CLAUDE_PROFILE", "claude-arch", &[]),
+    ("claude", "NONO_CLAUDE_PROFILE", "claude-local", &[]),
     // Without --standalone, opencode v2 may run tools in a shared server
     // outside the sandbox: https://github.com/nolabs-ai/nono-packs/issues/40
     (
@@ -231,7 +231,7 @@ mod tests {
     #[test]
     fn full_args() {
         let launch = Launch {
-            base: "claude-arch".into(),
+            base: "claude-local".into(),
             allow_cwd: true,
             extends: vec!["rust-dev".into(), "mise-dev".into()],
             dry_run: true,
@@ -242,7 +242,7 @@ mod tests {
             os(&[
                 "run",
                 "--profile",
-                "claude-arch",
+                "claude-local",
                 "--allow-cwd",
                 "--extends",
                 "rust-dev",
