@@ -35,19 +35,30 @@ the tool from the name it was called by (or use `nono-agent <tool> [args...]`).
 may run tools in a shared server outside the sandbox
 ([nono-packs#40](https://github.com/nolabs-ai/nono-packs/issues/40)).
 
-The base profiles should set `"network": {"network_profile": null}`. The
-language profiles (`python-dev`, `rust-dev`, …) set `network_profile:
-"developer"`, which otherwise turns on a domain allowlist that blocks localhost
-and most hosts (opencode then fails with "Standalone server exited before
-reporting readiness"). For example, `opencode-local`:
+The base profiles should set `network_profile` to `developer` and list what the
+tool needs beyond that in `allow_domain`. The language profiles (`python-dev`,
+`rust-dev`, …) set `developer` too, so setting it in the base profile means the
+tool reaches the same hosts whether or not a language is detected. Without it,
+`allow_domain` on its own allows only the domains it lists.
+
+The `developer` allowlist blocks localhost, so opencode needs it allowed for its
+standalone server. Without that it fails with "Standalone server exited before
+reporting readiness". For example, `opencode-local`:
 
 ```json
 {
   "extends": "nolabs-ai/opencode",
   "meta": { "name": "opencode-local" },
-  "network": { "network_profile": null }
+  "workdir": { "access": "readwrite" },
+  "network": {
+    "network_profile": "developer",
+    "allow_domain": ["localhost", "127.0.0.1", "opencode.ai", "models.opencode.ai"]
+  }
 }
 ```
+
+Hosts that aren't allowed stay blocked, including for tools like Claude's
+WebFetch.
 
 ## Detection
 
