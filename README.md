@@ -35,6 +35,13 @@ the tool from the name it was called by (or use `nono-agent <tool> [args...]`).
 | `nono-opencode` | `opencode-local` | `NONO_OPENCODE_PROFILE` |
 | `nono-pi`       | `pi-local`    | `NONO_PI_PROFILE`       |
 
+If a default profile isn't available, the wrapper prints a warning and falls back
+to the tool's pack profile (`nolabs-ai/claude`, `nolabs-ai/opencode` or
+`nolabs-ai/pi`), which must be installed with `nono pull`. This may not work: the
+pack profiles don't allow localhost, so once a language profile adds the
+`developer` allowlist, opencode's standalone server is likely to fail. A profile
+set through an override variable is never replaced.
+
 `nono-opencode` always passes `--standalone` to opencode. Otherwise opencode v2
 may run tools in a shared server outside the sandbox
 ([nono-packs#40](https://github.com/nolabs-ai/nono-packs/issues/40)).

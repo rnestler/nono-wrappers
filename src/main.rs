@@ -12,7 +12,7 @@ use std::ffi::{OsStr, OsString};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::process::CommandExt;
 use std::path::Path;
-use std::process::{Command, exit};
+use std::process::{Command, Stdio, exit};
 
 use detect::{Project, add};
 
@@ -141,6 +141,40 @@ fn insert_fixed_args(fixed: &[&str], args: &[OsString]) -> Vec<OsString> {
     out
 }
 
+/// Whether nono can load the profile. If nono can't be started, say yes, so
+/// that the launch reports that error instead.
+fn profile_available(name: &str) -> bool {
+    Command::new("nono")
+        .args(["profile", "show", name, "--json"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map_or(true, |s| s.success())
+}
+
+fn fallback_warning(prog: &str, missing: &str, fallback: &str) -> String {
+    format!(
+        "{prog}: profile '{missing}' not available, falling back to '{fallback}'.\n\
+         This may not work: with a language profile, network access is limited to \
+         nono's developer allowlist, which blocks localhost and most hosts."
+    )
+}
+
+/// The base profile: the override if set, which is never replaced so that a
+/// typo stays an error. Otherwise the default, or the tool's pack profile if
+/// the default isn't available.
+fn base_profile(prog: &str, tool: &str, base_var: &str, base_default: &str) -> String {
+    if let Some(base) = var(base_var) {
+        return base;
+    }
+    if profile_available(base_default) {
+        return base_default.to_owned();
+    }
+    let fallback = format!("nolabs-ai/{tool}");
+    eprintln!("{}", fallback_warning(prog, base_default, &fallback));
+    fallback
+}
+
 fn main() {
     let mut args: Vec<OsString> = env::args_os().collect();
     let argv0 = args.remove(0);
@@ -168,7 +202,7 @@ fn main() {
     };
 
     let mut launch = Launch {
-        base: var(base_var).unwrap_or_else(|| base_default.to_owned()),
+        base: base_profile(&prog, &tool, base_var, base_default),
         allow_cwd: var("NONO_WRAPPER_NO_ALLOW_CWD").is_none(),
         dry_run: var("NONO_WRAPPER_DRY_RUN").is_some(),
         nono_args: words(var("NONO_WRAPPER_ARGS"))
@@ -318,6 +352,15 @@ mod tests {
         let args = [inline];
         let leading = split_leading(&args).unwrap();
         assert_eq!(leading.nono_args[1], value);
+    }
+
+    #[test]
+    fn fallback_warning_names_both_profiles() {
+        let warning = fallback_warning("nono-pi", "pi-local", "nolabs-ai/pi");
+        assert!(warning.starts_with(
+            "nono-pi: profile 'pi-local' not available, falling back to 'nolabs-ai/pi'.\n"
+        ));
+        assert!(warning.contains("blocks localhost"));
     }
 
     #[test]
