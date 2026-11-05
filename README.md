@@ -1,7 +1,7 @@
 # nono-wrappers
 Wrap coding agents in nono.sh with profile detection
 
-`nono-claude`, `nono-opencode` and `nono-pi` launch `claude` / `opencode` / `pi`
+`nono-claude`, `nono-opencode`, `nono-pi` and `nono-codex` launch `claude` / `opencode` / `pi` / `codex`
 via `nono run --allow-cwd`
 with a base profile, plus `--extends` for every language profile detected in the
 project. All arguments are passed through to the tool.
@@ -24,7 +24,7 @@ nono-claude --allow ~/other --allow-domain example.com --extends browser --resum
 For other nono flags, use `NONO_WRAPPER_ARGS`.
 
 `install.sh` needs `cargo`. It installs the `nono-agent` binary and the
-`nono-claude` / `nono-opencode` / `nono-pi` symlinks to it; the binary picks
+`nono-claude` / `nono-opencode` / `nono-pi` / `nono-codex` symlinks to it; the binary picks
 the tool from the name it was called by (or use `nono-agent <tool> [args...]`).
 
 ## Base profiles
@@ -34,10 +34,11 @@ the tool from the name it was called by (or use `nono-agent <tool> [args...]`).
 | `nono-claude`   | `claude-local` | `NONO_CLAUDE_PROFILE`   |
 | `nono-opencode` | `opencode-local` | `NONO_OPENCODE_PROFILE` |
 | `nono-pi`       | `pi-local`    | `NONO_PI_PROFILE`       |
+| `nono-codex`    | `codex-local` | `NONO_CODEX_PROFILE`    |
 
 If a default profile isn't available, the wrapper prints a warning and falls back
-to the tool's pack profile (`nolabs-ai/claude`, `nolabs-ai/opencode` or
-`nolabs-ai/pi`), which must be installed with `nono pull`. This may not work: the
+to the tool's pack profile (`nolabs-ai/claude`, `nolabs-ai/opencode`, `nolabs-ai/pi`
+or `nolabs-ai/codex`), which must be installed with `nono pull`. This may not work: the
 pack profiles don't allow localhost, so once a language profile adds the
 `developer` allowlist, opencode's standalone server is likely to fail. A profile
 set through an override variable is never replaced.

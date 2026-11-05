@@ -1,7 +1,7 @@
 //! Launch a coding agent inside nono, extending its base profile with
 //! language profiles detected from marker files in the project.
 //!
-//! Invoked as nono-claude / nono-opencode / nono-pi (symlinks), or as
+//! Invoked as nono-claude / nono-opencode / nono-pi / nono-codex (symlinks), or as
 //! `nono-agent <tool> [args...]`. Leading nono flags are passed to nono, e.g.
 //! `nono-claude --allow ~/other --extends browser --resume`.
 
@@ -29,6 +29,7 @@ const TOOLS: &[(&str, &str, &str, &[&str])] = &[
         &["--standalone"],
     ),
     ("pi", "NONO_PI_PROFILE", "pi-local", &[]),
+    ("codex", "NONO_CODEX_PROFILE", "codex-local", &[]),
 ];
 
 /// Flags passed to nono when they lead the command line. Each takes one value.
@@ -184,10 +185,10 @@ fn main() {
         .unwrap_or_else(|| "nono-agent".into());
 
     let tool = match prog.strip_prefix("nono-") {
-        Some(t @ ("claude" | "opencode" | "pi")) => t.to_owned(),
+        Some(t @ ("claude" | "opencode" | "pi" | "codex")) => t.to_owned(),
         _ => {
             if args.is_empty() {
-                eprintln!("usage: {prog} <claude|opencode|pi> [args...]");
+                eprintln!("usage: {prog} <claude|opencode|pi|codex> [args...]");
                 exit(2);
             }
             let tool = args.remove(0).to_string_lossy().into_owned();
